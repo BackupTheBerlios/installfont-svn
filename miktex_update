@@ -1,0 +1,84 @@
+#!/bin/bash
+#
+# miktex_update
+#
+# synchronize the local MiKTeX repository, update
+# installed packages and install new packages
+# (tested with MiKTeX 2.7)
+# v0.6 (03.02.2008) (C) Josef Kleber 2008 
+# License: LPPL
+#
+REPDIR=E:/MiKTeXRepRsync/packages
+# last subdirectory have to be /packages!!!
+RSYNCURL=rsync://www.ctan.org/SYSTEMS/win32/miktex/tm/packages
+RSYNCOPT='-av --progress --partial'
+# delete '--progress --partial' with broadband service
+UPDLIST=update.txt
+INSTLIST=install.txt
+ERROR=error.txt
+#
+echo
+echo " MiKTeX Update"
+echo "---------------"
+echo
+echo "(1/5) Synchronize local repository with CTAN"
+echo
+if [ ! -d $REPDIR ]
+then
+  mkdir -p $REPDIR 2>$ERROR
+fi
+cd $REPDIR
+cd ..
+if [ -a $ERROR ]
+then
+  rm $ERROR
+fi
+rsync $RSYNCOPT $RSYNCURL . 2>>$ERROR
+if [ $? -eq 0 ]
+then
+  echo
+fi
+echo "(2/5) Update DB"
+mpm --repository=$REPDIR --update-db 2>>$ERROR
+mpm --repository=$REPDIR --find-updates >$UPDLIST 2>>$ERROR
+echo
+echo "(3/5) List of update packages:"
+echo
+if [ "`cat $UPDLIST | head -1 | cut -c1-5`" = "There" ]
+then
+  echo "      There are currently no updates available."
+  echo
+  echo "(4/5) Update installed packages"
+  echo
+  echo "      There are currently no updates available."
+else
+  cat $UPDLIST
+  echo
+  echo "(4/5) Update installed packages"
+  echo
+  mpm --repository=$REPDIR --update --verbose 2>>$ERROR
+fi
+mpm --repository=$REPDIR --list | grep -e '- ' | cut -c22- >$INSTLIST 2>>$ERROR
+echo
+echo "(5/5) Install new packages"
+echo
+if [ -s $INSTLIST ]
+then
+  mpm --repository=$REPDIR --install-some=$INSTLIST --verbose 2>>$ERROR
+else
+  echo "      There are currently no new packages available."
+fi
+rm $UPDLIST
+rm $INSTLIST
+echo
+echo
+if [ `ls -al | grep $ERROR | tr -s ' ' | cut -f5 -d ' '` = "0" ]
+then
+  rm $ERROR
+  echo "Done!"
+else
+  echo "ERROR list:"
+  echo
+  cat $ERROR
+fi
+echo
