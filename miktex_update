@@ -2,46 +2,120 @@
 #
 # miktex_update
 #
-# synchronize the local MiKTeX repository, update
-# installed packages and install new packages
-# (tested with MiKTeX 2.7)
-# v0.6 (03.02.2008) (C) Josef Kleber 2008 
-# License: LPPL
+# synchronize the local MiKTeX repository (optional),
+# update installed packages and install new packages
+# (tested with MiKTeX 2.7) v0.7 (09.02.2008)
+# (C) Josef Kleber 2008  License: LPPL
 #
-REPDIR=E:/MiKTeXRepRsync/packages
-# last subdirectory have to be /packages!!!
+REPO=C:/MiKTeXRepRsync/packages
+# last subdirectory must be /packages!!!
 RSYNCURL=rsync://www.ctan.org/SYSTEMS/win32/miktex/tm/packages
 RSYNCOPT='-av --progress --partial'
 # delete '--progress --partial' with broadband service
+ODIR=`pwd`
+UPDATEMODE="default"
+ARGREPO="default"
 UPDLIST=update.txt
 INSTLIST=install.txt
 ERROR=error.txt
+#
+function printHelp()
+{
+  echo -e \
+          "`basename $0` [options] [--local | --online [--repository <URL Online-Repository>]]\n"\
+		  " updates your MiKTeX installation\n"\
+		  " to be continued! ;-)"
+  exit 0;
+}
+#
+if [ $# -eq 0 ]
+then
+  echo -e "`basename $0`: Could not find command line arguments.\nUse the '--help' option for explanation."
+  exit 1
+fi
+#
+LONGOPTS="help,local,online,test,repository:"
+SHORTOPTS="hlotr:"
+ARGS=`getopt -l "$LONGOPTS" "$SHORTOPTS" "$@"`
+if [ $? -ne 0 ]
+then
+  echo -e "`basename $0`: Could not process command line arguments.\nUse the '--help' option for explanation."
+  echo -e "ERROR:\n`cat $ERROR`"
+  exit 1
+fi
+#
+eval set -- "$ARGS"
+#
+while [ $# -gt 0 ]; do
+  ARG=$1
+  case "$ARG" in
+    --help|-h)       shift; printHelp;;
+    --local|-l)      shift; UPDATEMODE="LOCAL";;
+	--online|-o)     shift; UPDATEMODE="ONLINE";;
+	--test|-t)       shift; UPDATEMODE="TEST";;
+	--repository|-r) shift; ARGREPO="$1"; shift;;
+	--)              shift; break;;
+	*)               break;;
+  esac
+done
 #
 echo
 echo " MiKTeX Update"
 echo "---------------"
 echo
-echo "(1/5) Synchronize local repository with CTAN"
-echo
-if [ ! -d $REPDIR ]
+if [ $UPDATEMODE = "LOCAL" ]
 then
-  mkdir -p $REPDIR 2>$ERROR
-fi
-cd $REPDIR
-cd ..
-if [ -a $ERROR ]
-then
-  rm $ERROR
-fi
-rsync $RSYNCOPT $RSYNCURL . 2>>$ERROR
-if [ $? -eq 0 ]
-then
+  if [ $ARGREPO != "default" ]
+  then
+    REPO=$ARGREPO
+  fi
+  echo "(1/5) Synchronize local repository with CTAN"
   echo
+  if [ ! -d $REPO ]
+  then
+    mkdir -p $REPO 
+  fi
+  cd $REPO
+  cd ..
+  if [ -a $ERROR ]
+  then
+    rm $ERROR
+  fi
+  rsync $RSYNCOPT $RSYNCURL . 
+  if [ $? -eq 0 ]
+  then
+    echo
+  fi
+elif [ $UPDATEMODE = "ONLINE" ]
+then
+  if [ $ARGREPO = "default" ]
+  then
+    echo -e "You did not specify a repository.\nPlease add e.g.(random pick): --repository `mpm --pick-repository-url`"
+	exit 1
+  else
+    REPO=$ARGREPO
+  fi
+elif [ $UPDATEMODE = "TEST" ]
+then
+  REPO=`mpm --pick-repository-url`
+  #REPO="$REPO/"
+  echo -e "S-${REPO}-N\n"
+  if [ "`echo "$REPO" | cut -c1-7`" = "mpm.exe" ]
+  then
+    echo "ERROR: Could not pick a random online repository."
+	exit 1
+  fi
+else
+  echo -e "`basename $0`: You did not specify an UPDATE MODE.\nUse the '--help' option for explanation."
+  exit 1
 fi
-echo "(2/5) Update DB"
-mpm --repository=$REPDIR --update-db 2>>$ERROR
-mpm --repository=$REPDIR --find-updates >$UPDLIST 2>>$ERROR
+echo "(1/5) Set online repository: $REPO"
 echo
+mpm --set-repository=$REPO 
+echo "(2/5) Update DB"
+echo
+mpm --update-db ;
+mpm --find-updates >$UPDLIST 
 echo "(3/5) List of update packages:"
 echo
 if [ "`cat $UPDLIST | head -1 | cut -c1-5`" = "There" ]
@@ -56,29 +130,19 @@ else
   echo
   echo "(4/5) Update installed packages"
   echo
-  mpm --repository=$REPDIR --update --verbose 2>>$ERROR
+  mpm --update --verbose 
 fi
-mpm --repository=$REPDIR --list | grep -e '- ' | cut -c22- >$INSTLIST 2>>$ERROR
+mpm --list | grep -e '- ' | cut -c22- >$INSTLIST 
 echo
 echo "(5/5) Install new packages"
 echo
 if [ -s $INSTLIST ]
 then
-  mpm --repository=$REPDIR --install-some=$INSTLIST --verbose 2>>$ERROR
+  mpm --install-some=$INSTLIST --verbose 
 else
   echo "      There are currently no new packages available."
 fi
 rm $UPDLIST
 rm $INSTLIST
-echo
-echo
-if [ `ls -al | grep $ERROR | tr -s ' ' | cut -f5 -d ' '` = "0" ]
-then
-  rm $ERROR
-  echo "Done!"
-else
-  echo "ERROR list:"
-  echo
-  cat $ERROR
-fi
-echo
+cd $ODIR
+exit 0
