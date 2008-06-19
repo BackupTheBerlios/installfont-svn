@@ -10,7 +10,7 @@
 #     http://latex.josef-kleber.de/en_miktex_update.htm
 # for more information
 #
-VERSION="v0.8 (09.04.2008)"
+VERSION="v0.81 (19.06.2008)"
 REPO=E:/MiKTeXRepRsync
 REPOSUBDIR=/packages 
 #don't change REPOSUBDIR!!
@@ -32,7 +32,7 @@ function printHelp()
 		  " updates your MiKTeX installation and installs new packages\n\n"\
 		  " Options:\n\n"\
 		  " -h, --help  will print this help statement\n\n"\
-		  " --version  will print the version number of `basename $0`\n\n"\
+		  " -V, --version  will print the version number of `basename $0`\n\n"\
 		  " -b, --broadband  will optimize the text output in LOCAL mode for broadband\n"\
 		  "                  download. Support for partial package download will be\n"\
 		  "                  switched off!\n\n"\
@@ -63,7 +63,7 @@ then
 fi
 #
 LONGOPTS="help,broadband,verbose,version,local,online,repository:"
-SHORTOPTS="hbvlor:"
+SHORTOPTS="hbVvlor:"
 ARGS=`getopt -l "$LONGOPTS" "$SHORTOPTS" "$@" 2>$ERROR`
 if [ $? -ne 0 ]
 then
@@ -80,7 +80,7 @@ while [ $# -gt 0 ]; do
     --help|-h)       shift; printHelp;;
 	--broadband|-b)  shift; RSYNCOPT2="";;
 	--verbose|-v)    shift; VERBOSE="--verbose";;
-	--version)       shift; printVersion;;
+	--version|-V)    shift; printVersion;;
     --local|-l)      shift; UPDATEMODE="LOCAL";;
 	--online|-o)     shift; UPDATEMODE="ONLINE";;
 	--repository|-r) shift; ARGREPO="$1"; shift;;
