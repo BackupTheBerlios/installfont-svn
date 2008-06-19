@@ -4,17 +4,23 @@
 #
 # synchronize the local MiKTeX repository (optional),
 # update installed packages and install new packages
-# (tested with MiKTeX 2.7) v0.7 (09.02.2008)
+# (tested with MiKTeX 2.7) v0.8 (09.04.2008)
 # (C) Josef Kleber 2008  License: LPPL
+# See http://latex.josef-kleber.de/miktex_update.htm or
+#     http://latex.josef-kleber.de/en_miktex_update.htm
+# for more information
 #
-REPO=C:/MiKTeXRepRsync/packages
-# last subdirectory must be /packages!!!
+VERSION="v0.8 (09.04.2008)"
+REPO=E:/MiKTeXRepRsync
+REPOSUBDIR=/packages 
+#don't change REPOSUBDIR!!
 RSYNCURL=rsync://www.ctan.org/SYSTEMS/win32/miktex/tm/packages
-RSYNCOPT='-av --progress --partial'
-# delete '--progress --partial' with broadband service
+RSYNCOPT1='-av'
+RSYNCOPT2='--progress --partial'
 ODIR=`pwd`
 UPDATEMODE="default"
 ARGREPO="default"
+VERBOSE=""
 UPDLIST=update.txt
 INSTLIST=install.txt
 ERROR=error.txt
@@ -22,9 +28,31 @@ ERROR=error.txt
 function printHelp()
 {
   echo -e \
-          "`basename $0` [options] [--local | --online [--repository <URL Online-Repository>]]\n"\
-		  " updates your MiKTeX installation\n"\
-		  " to be continued! ;-)"
+          "`basename $0` [options] [--local | --online [--repository <URL/DIR Repository>]]\n"\
+		  " updates your MiKTeX installation and installs new packages\n\n"\
+		  " Options:\n\n"\
+		  " -h, --help  will print this help statement\n\n"\
+		  " --version  will print the version number of `basename $0`\n\n"\
+		  " -b, --broadband  will optimize the text output in LOCAL mode for broadband\n"\
+		  "                  download. Support for partial package download will be\n"\
+		  "                  switched off!\n\n"\
+		  " -v, --verbose  will lead to a more verbose text output in the process of\n"\
+		  "                updating and installing new packages\n\n"\
+		  " -l, --local  will set the update mode to LOCAL and syncronize the local\n"\
+		  "              repository (default or specified with option -r) with CTAN\n\n"\
+		  " -o, --online  will set the update mode to ONLINE. You have to specify an\n"\
+		  "               online repository with option -r. Without doing so a\n"\
+		  "               repository URL from the MiKTeX server network will be echoed\n\n"\
+		  " -r, --repository  specifies the local or online repository for updating\n"\
+		  "                   and installing new packages\n\n"\
+		  " See http://latex.josef-kleber.de/miktex_update.htm or\n"\
+          "     http://latex.josef-kleber.de/en_miktex_update.htm\n"\
+          " for more information"
+  exit 0;
+}
+function printVersion()
+{
+  echo "This is version $VERSION of `basename $0`"
   exit 0;
 }
 #
@@ -34,9 +62,9 @@ then
   exit 1
 fi
 #
-LONGOPTS="help,local,online,test,repository:"
-SHORTOPTS="hlotr:"
-ARGS=`getopt -l "$LONGOPTS" "$SHORTOPTS" "$@"`
+LONGOPTS="help,broadband,verbose,version,local,online,repository:"
+SHORTOPTS="hbvlor:"
+ARGS=`getopt -l "$LONGOPTS" "$SHORTOPTS" "$@" 2>$ERROR`
 if [ $? -ne 0 ]
 then
   echo -e "`basename $0`: Could not process command line arguments.\nUse the '--help' option for explanation."
@@ -50,9 +78,11 @@ while [ $# -gt 0 ]; do
   ARG=$1
   case "$ARG" in
     --help|-h)       shift; printHelp;;
+	--broadband|-b)  shift; RSYNCOPT2="";;
+	--verbose|-v)    shift; VERBOSE="--verbose";;
+	--version)       shift; printVersion;;
     --local|-l)      shift; UPDATEMODE="LOCAL";;
 	--online|-o)     shift; UPDATEMODE="ONLINE";;
-	--test|-t)       shift; UPDATEMODE="TEST";;
 	--repository|-r) shift; ARGREPO="$1"; shift;;
 	--)              shift; break;;
 	*)               break;;
@@ -67,13 +97,15 @@ if [ $UPDATEMODE = "LOCAL" ]
 then
   if [ $ARGREPO != "default" ]
   then
-    REPO=$ARGREPO
+    REPO=${ARGREPO}${REPOSUBDIR}
+  else
+    REPO=${REPO}${REPOSUBDIR}
   fi
   echo "(1/5) Synchronize local repository with CTAN"
   echo
   if [ ! -d $REPO ]
   then
-    mkdir -p $REPO 
+    mkdir -p $REPO 2>>$ERROR
   fi
   cd $REPO
   cd ..
@@ -81,7 +113,8 @@ then
   then
     rm $ERROR
   fi
-  rsync $RSYNCOPT $RSYNCURL . 
+  RSYNCOPT="$RSYNCOPT1 $RSYNCOPT2"
+  rsync $RSYNCOPT $RSYNCURL . 2>>$ERROR
   if [ $? -eq 0 ]
   then
     echo
@@ -94,28 +127,18 @@ then
 	exit 1
   else
     REPO=$ARGREPO
-  fi
-elif [ $UPDATEMODE = "TEST" ]
-then
-  REPO=`mpm --pick-repository-url`
-  #REPO="$REPO/"
-  echo -e "S-${REPO}-N\n"
-  if [ "`echo "$REPO" | cut -c1-7`" = "mpm.exe" ]
-  then
-    echo "ERROR: Could not pick a random online repository."
-	exit 1
+	echo "(1/5) Set online repository: $REPO"
+    echo
   fi
 else
   echo -e "`basename $0`: You did not specify an UPDATE MODE.\nUse the '--help' option for explanation."
   exit 1
 fi
-echo "(1/5) Set online repository: $REPO"
-echo
-mpm --set-repository=$REPO 
+mpm --set-repository=$REPO 2>>$ERROR
 echo "(2/5) Update DB"
 echo
-mpm --update-db ;
-mpm --find-updates >$UPDLIST 
+mpm --update-db 2>>$ERROR;
+mpm --find-updates >$UPDLIST 2>>$ERROR
 echo "(3/5) List of update packages:"
 echo
 if [ "`cat $UPDLIST | head -1 | cut -c1-5`" = "There" ]
@@ -130,19 +153,31 @@ else
   echo
   echo "(4/5) Update installed packages"
   echo
-  mpm --update --verbose 
+  mpm --update $VERBOSE 2>>$ERROR
 fi
-mpm --list | grep -e '- ' | cut -c22- >$INSTLIST 
+mpm --list | grep -e '- ' | cut -c22- >$INSTLIST 2>>$ERROR
 echo
 echo "(5/5) Install new packages"
 echo
 if [ -s $INSTLIST ]
 then
-  mpm --install-some=$INSTLIST --verbose 
+  mpm --install-some=$INSTLIST $VERBOSE 2>>$ERROR
 else
   echo "      There are currently no new packages available."
 fi
 rm $UPDLIST
 rm $INSTLIST
+echo
+echo
+if [ `ls -al | grep $ERROR | tr -s ' ' | cut -f5 -d ' '` = "0" ]
+then
+  rm $ERROR
+  echo "Done!"
+else
+  echo "ERROR list:"
+  echo
+  cat $ERROR
+fi
+echo
 cd $ODIR
 exit 0
