@@ -4,13 +4,13 @@
 #
 # synchronize the local MiKTeX repository (optional),
 # update installed packages and install new packages
-# (tested with MiKTeX 2.7) v0.8 (09.04.2008)
+# (tested with MiKTeX 2.7) v0.82 (20.06.2008)
 # (C) Josef Kleber 2008  License: LPPL
 # See http://latex.josef-kleber.de/miktex_update.htm or
 #     http://latex.josef-kleber.de/en_miktex_update.htm
 # for more information
 #
-VERSION="v0.81 (19.06.2008)"
+VERSION="v0.82 (20.06.2008)"
 REPO=E:/MiKTeXRepRsync
 REPOSUBDIR=/packages 
 #don't change REPOSUBDIR!!
@@ -24,6 +24,7 @@ VERBOSE=""
 UPDLIST=update.txt
 INSTLIST=install.txt
 ERROR=error.txt
+typeset -i STEP=0
 #
 function printHelp()
 {
@@ -90,6 +91,7 @@ while [ $# -gt 0 ]; do
 done
 #
 echo
+echo
 echo " MiKTeX Update"
 echo "---------------"
 echo
@@ -101,7 +103,8 @@ then
   else
     REPO=${REPO}${REPOSUBDIR}
   fi
-  echo "(1/5) Synchronize local repository with CTAN"
+  ((STEP++))
+  echo "$STEP) Synchronize local repository with CTAN"
   echo
   if [ ! -d $REPO ]
   then
@@ -127,7 +130,8 @@ then
 	exit 1
   else
     REPO=$ARGREPO
-	echo "(1/5) Set online repository: $REPO"
+	((STEP++))
+	echo "$STEP) Set online repository: $REPO"
     echo
   fi
 else
@@ -135,29 +139,34 @@ else
   exit 1
 fi
 mpm --set-repository=$REPO 2>>$ERROR
-echo "(2/5) Update DB"
+((STEP++))
+echo "$STEP) Update DB"
 echo
 mpm --update-db 2>>$ERROR;
 mpm --find-updates >$UPDLIST 2>>$ERROR
-echo "(3/5) List of update packages:"
+((STEP++))
+echo "$STEP) List of update packages:"
 echo
 if [ "`cat $UPDLIST | head -1 | cut -c1-5`" = "There" ]
 then
   echo "      There are currently no updates available."
   echo
-  echo "(4/5) Update installed packages"
+  ((STEP++))
+  echo "$STEP) Update installed packages"
   echo
   echo "      There are currently no updates available."
 else
   cat $UPDLIST
   echo
-  echo "(4/5) Update installed packages"
+  ((STEP++))
+  echo "$STEP) Update installed packages"
   echo
   mpm --update $VERBOSE 2>>$ERROR
 fi
 mpm --list | grep -e '- ' | cut -c22- >$INSTLIST 2>>$ERROR
 echo
-echo "(5/5) Install new packages"
+((STEP++))
+echo "$STEP) Install new packages"
 echo
 if [ -s $INSTLIST ]
 then
