@@ -4,13 +4,13 @@
 #
 # synchronize the local MiKTeX repository (optional),
 # update installed packages and install new packages
-# (tested with MiKTeX 2.7) v0.84 (21.06.2008)
+# (tested with MiKTeX 2.7) v0.84 (22.06.2008)
 # (C) Josef Kleber 2008  License: LPPL
 # See http://latex.josef-kleber.de/miktex_update.htm or
 #     http://latex.josef-kleber.de/en_miktex_update.htm
 # for more information
 #
-VERSION="v0.84 (21.06.2008)"
+VERSION="v0.84 (22.06.2008)"
 REPO=E:/MiKTeXRepRsync
 REPOSUBDIR=/packages 
 # don't change REPOSUBDIR!!
@@ -151,45 +151,53 @@ fi
 mpm --set-repository=$REPO 2>>$ERROR
 ((STEP++))
 echo "$STEP) Update DB"
+echo
 mpm --update-db 2>>$ERROR;
 if [ $UPDATE = "true" ]
 then
   mpm --find-updates >$UPDLIST 2>>$ERROR
+  if [ $NOLIST = "false" ]
+  then
+    ((STEP++))
+    echo "$STEP) List of updatable packages:"
+    echo
+    if [ "`cat $UPDLIST | head -1 | cut -c1-5`" = "There" ]
+    then
+      echo "   There are currently no updates available."
+      echo
+    else
+      cat $UPDLIST
+      echo
+    fi
+  fi
   ((STEP++))
-  echo
-  echo "$STEP) List of updateable packages:"
+  echo "$STEP) Update installed packages"
   echo
   if [ "`cat $UPDLIST | head -1 | cut -c1-5`" = "There" ]
   then
-    echo "      There are currently no updates available."
+    echo "   There are currently no updates available."
     echo
-    ((STEP++))
-    echo "$STEP) Update installed packages"
-    echo
-    echo "      There are currently no updates available."
-  else
-    cat $UPDLIST
-    echo
-    ((STEP++))
-    echo "$STEP) Update installed packages"
-    echo
+  else    
     mpm --update $VERBOSE 2>>$ERROR
   fi
 fi
 if [ $INSTALL = "true" ]
 then
   mpm --list | grep -e '- ' | cut -c22- >$INSTLIST 2>>$ERROR
-  echo
-  ((STEP++))
-  echo "$STEP) List of installable packages:"
-  echo
-  if [ -s $INSTLIST ]
+  if [ $NOLIST = "false" ]
   then
-    cat $INSTLIST
-  else
-    echo "      There are currently no new packages available."
+    ((STEP++))
+    echo "$STEP) List of installable packages:"
+	echo
+    if [ -s $INSTLIST ]
+    then
+      cat $INSTLIST
+	  echo
+    else
+      echo "   There are currently no new packages available."
+	  echo
+    fi
   fi
-  echo
   ((STEP++))
   echo "$STEP) Install new packages"
   echo
@@ -197,7 +205,8 @@ then
   then
     mpm --install-some=$INSTLIST $VERBOSE 2>>$ERROR
   else
-    echo "      There are currently no new packages available."
+    echo "   There are currently no new packages available."
+	echo
   fi
 fi
 if [ $UPDATE = "true" ]
@@ -208,7 +217,6 @@ if [ $INSTALL = "true" ]
 then
   rm $INSTLIST
 fi
-echo
 echo
 if [ `ls -al | grep $ERROR | tr -s ' ' | cut -f5 -d ' '` = "0" ]
 then
