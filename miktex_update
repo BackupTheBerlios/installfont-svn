@@ -4,13 +4,13 @@
 #
 # synchronize the local MiKTeX repository (optional),
 # update installed packages and install new packages
-# (tested with MiKTeX 2.7) v0.84 (22.06.2008)
+# (tested with MiKTeX 2.7) v0.85 (22.06.2008)
 # (C) Josef Kleber 2008  License: LPPL
 # See http://latex.josef-kleber.de/miktex_update.htm or
 #     http://latex.josef-kleber.de/en_miktex_update.htm
 # for more information
 #
-VERSION="v0.84 (22.06.2008)"
+VERSION="v0.85 (22.06.2008)"
 REPO=E:/MiKTeXRepRsync
 REPOSUBDIR=/packages 
 # don't change REPOSUBDIR!!
@@ -27,6 +27,7 @@ ERROR="error.txt"
 UPDATE="true"
 INSTALL="true"
 NOLIST="false"
+INTERACTIVE="default"
 typeset -i STEP=0
 #
 function printHelp()
@@ -53,6 +54,8 @@ function printHelp()
 		  "               repository URL from the MiKTeX server network will be echoed\n\n"\
 		  " -r, --repository  specifies the local or online repository for updating\n"\
 		  "                   and installing new packages\n\n"\
+		  " -I, --interactive  the script will ask, if you want to update and/or install\n"\
+		  "                    packages (-n.--nolist will be switched off)\n\n"\
 		  " See http://latex.josef-kleber.de/miktex_update.htm or\n"\
           "     http://latex.josef-kleber.de/en_miktex_update.htm\n"\
           " for more information"
@@ -70,8 +73,8 @@ then
   exit 1
 fi
 #
-LONGOPTS="help,broadband,verbose,version,nolist,local,online,update,install,repository:"
-SHORTOPTS="hbVvnlouir:"
+LONGOPTS="help,broadband,verbose,version,nolist,local,online,update,install,interactive,repository:"
+SHORTOPTS="hbVvnlouiIr:"
 ARGS=`getopt -l "$LONGOPTS" "$SHORTOPTS" "$@" 2>$ERROR`
 if [ $? -ne 0 ]
 then
@@ -85,20 +88,26 @@ eval set -- "$ARGS"
 while [ $# -gt 0 ]; do
   ARG=$1
   case "$ARG" in
-    --help|-h)       shift; printHelp;;
-	--broadband|-b)  shift; RSYNCOPT2="";;
-	--verbose|-v)    shift; VERBOSE="--verbose";;
-	--version|-V)    shift; printVersion;;
-	--nolist|-n)     shift; NOLIST="true";;
-    --local|-l)      shift; UPDATEMODE="LOCAL";;
-	--online|-o)     shift; UPDATEMODE="ONLINE";;
-	--update|-u)     shift; INSTALL="false";;
-	--install|-i)    shift; UPDATE="false";;
-	--repository|-r) shift; ARGREPO="$1"; shift;;
-	--)              shift; break;;
-	*)               break;;
+    --help|-h)         shift; printHelp;;
+	--broadband|-b)    shift; RSYNCOPT2="";;
+	--verbose|-v)      shift; VERBOSE="--verbose";;
+	--version|-V)      shift; printVersion;;
+	--nolist|-n)       shift; NOLIST="true";;
+    --local|-l)        shift; UPDATEMODE="LOCAL";;
+	--online|-o)       shift; UPDATEMODE="ONLINE";;
+	--update|-u)       shift; INSTALL="false";;
+	--install|-i)      shift; UPDATE="false";;
+	--interactive|-I)  shift; INTERACTIVE="interactive";;
+	--repository|-r)   shift; ARGREPO="$1"; shift;;
+	--)                shift; break;;
+	*)                 break;;
   esac
 done
+#
+if [ $INTERACTIVE = "interactive" ]
+then
+  NOLIST="false"
+fi
 #
 echo
 echo
@@ -168,17 +177,32 @@ then
     else
       cat $UPDLIST
       echo
+	  if [ $INTERACTIVE = "interactive" ]
+	  then
+	    echo -e "Do you want to update these packages (y/n): \c"
+		read ANSWER
+		if [ $ANSWER = "y" -o $ANSWER = "Y" ]
+		then
+		  UPDATE="true"
+		else
+		  UPDATE="false"
+		fi
+		echo
+	  fi
     fi
   fi
-  ((STEP++))
-  echo "$STEP) Update installed packages"
-  echo
-  if [ "`cat $UPDLIST | head -1 | cut -c1-5`" = "There" ]
+  if [ $UPDATE = "true" ]
   then
-    echo "   There are currently no updates available."
+    ((STEP++))
+    echo "$STEP) Update installed packages"
     echo
-  else    
-    mpm --update $VERBOSE 2>>$ERROR
+    if [ "`cat $UPDLIST | head -1 | cut -c1-5`" = "There" ]
+    then
+      echo "   There are currently no updates available."
+      echo
+    else    
+      mpm --update $VERBOSE 2>>$ERROR
+    fi
   fi
 fi
 if [ $INSTALL = "true" ]
@@ -193,20 +217,35 @@ then
     then
       cat $INSTLIST
 	  echo
+	  if [ $INTERACTIVE = "interactive" ]
+	  then
+	    echo -e "Do you want to install these packages (y/n): \c"
+		read ANSWER
+		if [ $ANSWER = "y" -o $ANSWER = "Y" ]
+		then
+		  INSTALL="true"
+		else
+		  INSTALL="false"
+		fi
+		echo
+	  fi
     else
       echo "   There are currently no new packages available."
 	  echo
     fi
   fi
-  ((STEP++))
-  echo "$STEP) Install new packages"
-  echo
-  if [ -s $INSTLIST ]
+  if [ $INSTALL = "true" ]
   then
-    mpm --install-some=$INSTLIST $VERBOSE 2>>$ERROR
-  else
-    echo "   There are currently no new packages available."
-	echo
+    ((STEP++))
+    echo "$STEP) Install new packages"
+    echo
+    if [ -s $INSTLIST ]
+    then
+      mpm --install-some=$INSTLIST $VERBOSE 2>>$ERROR
+    else
+      echo "   There are currently no new packages available."
+	  echo
+    fi
   fi
 fi
 if [ $UPDATE = "true" ]
@@ -221,12 +260,13 @@ echo
 if [ `ls -al | grep $ERROR | tr -s ' ' | cut -f5 -d ' '` = "0" ]
 then
   rm $ERROR
-  echo "Done!"
+  cd $ODIR
 else
   echo "ERROR list:"
   echo
   cat $ERROR
+  cd $ODIR
+  exit 1
 fi
 echo
-cd $ODIR
 exit 0
