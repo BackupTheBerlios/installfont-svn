@@ -53,7 +53,7 @@ function printHelp()
 		  "                  switched off!\n\n"\
 		  " -v, --verbose  will lead to a more verbose text output in the process of\n"\
 		  "                updating and installing new packages\n\n"\
-		  " -n, --nolist  will not print the list of updateable and/or installable\n"\
+		  " -n, --nolist  will not print the list of updatable and/or installable\n"\
 		  "               packages\n\n"\
 		  " -I, --interactive  the script will ask, if you want to update and/or install\n"\
 		  "                    packages (-n.--nolist will be switched off)\n\n"\
