@@ -4,35 +4,40 @@
 #
 # synchronize the local MiKTeX repository (optional),
 # update installed packages and install new packages
-# (tested with MiKTeX 2.7) v1.0 (23.06.2008)
+# (tested with MiKTeX 2.7) v1.1 (01.07.2008)
 # (C) Josef Kleber 2008  License: LPPL
 # See http://latex.josef-kleber.de/miktex_update.htm or
 #     http://latex.josef-kleber.de/en_miktex_update.htm
 # for more information
 #
-VERSION="v1.0 (23.06.2008)"
+VERSION="v1.1 (01.07.2008)"
 REPO=E:/MiKTeXRepRsync
 REPOSUBDIR=/packages 
 # don't change REPOSUBDIR!!
-HTTPURL=http://www.ctan.org/systems/win32/miktex/tm/packages
-#HTTPURL=http://dante.ctan.org/tex-archive/systems/win32/miktex/tm/packages
+HTTPURL="http://www.ctan.org/systems/win32/miktex/tm/packages"
+HTTPSEARCHURL="http://www.ctan.org/cgi-bin/filenameSearch.py?filename=miktex-zzdb&Search=Search"
 MIKTEXFILENAME1="miktex"
 MIKTEXFILENAME2="zzdb"
 MIKTEXFILENAMEEND=""
 MIKTEXVERSION=""
-TEMPDIR="/tmp/miktex_update"
-ODIR2=""
+TEMPDIR=""
+TEMPENV=""
 RSYNCURL=rsync://www.ctan.org/SYSTEMS/win32/miktex/tm/packages
 #RSYNCURL=rsync://dante.ctan.org/CTAN/systems/win32/miktex/tm/packages
-RSYNCOPT1='-av'
-RSYNCOPT2='--progress --partial'
-ODIR=`pwd`
+RSYNCOPT1="-av"
+RSYNCOPT2="--progress --partial"
+ODIR=$(pwd)
+ODIR2=""
+ODIR3=""
 UPDATEMODE="default"
 ARGREPO="default"
 VERBOSE=""
 UPDLIST="update.txt"
 INSTLIST="install.txt"
-ERROR="error.txt"
+ERRORDIR="$HOME"
+ERROR="miktex_update_error.txt"
+ERRORFILE="${ERRORDIR}/${ERROR}"
+ERRORFILESIZE=""
 UPDATE="true"
 INSTALL="true"
 NOLIST="false"
@@ -62,9 +67,9 @@ function printHelp()
 		  " -i, --install  will only install new respectively uninstalled packages\n\n"\
 		  " -l, --local  will set the update mode to LOCAL and syncronize the local\n"\
 		  "              repository (default or specified with option -r) with CTAN\n\n"\
-		  " -o, --online  will set the update mode to ONLINE. You have to specify an\n"\
-		  "               online repository with option -r. Without doing so a\n"\
-		  "               repository URL from the MiKTeX server network will be echoed\n\n"\
+		  " -o, --online  will set the update mode to ONLINE. You can specify an online\n"\
+		  "               repository with option -r. Without doing so, a repository\n"\
+		  "               from the MiKTeX server network will be picked by random\n\n"\
 		  " -r, --repository  specifies the local or online repository for updating\n"\
 		  "                   and installing new packages\n\n"\
 		  " See http://latex.josef-kleber.de/miktex_update.htm or\n"\
@@ -86,11 +91,11 @@ fi
 #
 LONGOPTS="help,broadband,verbose,version,nolist,local,online,update,install,interactive,searchonly,repository:"
 SHORTOPTS="hbVvnlouiIsr:"
-ARGS=`getopt -l "$LONGOPTS" "$SHORTOPTS" "$@" 2>$ERROR`
+ARGS=$(getopt -l "$LONGOPTS" "$SHORTOPTS" "$@" 2>$ERRORFILE)
 if [ $? -ne 0 ]
 then
   echo -e "`basename $0`: Could not process command line arguments.\nUse the '--help' option for explanation."
-  echo -e "ERROR:\n`cat $ERROR`"
+  echo -e "ERROR:\n`cat $ERRORFILE`"
   exit 1
 fi
 #
@@ -126,6 +131,8 @@ then
   INTERACTIVE="default"
 fi
 #
+TEMPENV=$(cygpath -w $TEMP)
+TEMPDIR="${TEMPENV}\miktex_update"
 echo
 echo
 echo " MiKTeX Update"
@@ -144,16 +151,17 @@ then
     ((STEP++))
     echo "$STEP) Download latest MiKTeX repository information"
     echo
-    ODIR2=`pwd`
-    mkdir $TEMPDIR 2>>$ERROR
+    ODIR2=$(pwd)
+    mkdir -p $TEMPDIR 2>>$ERRORFILE
     cd $TEMPDIR
-	MIKTEXVERSION=`mpm --version | head -1 |cut -f4 -d ' ' | cut -c1-3 2>>$ERROR`
-	wget -q $HTTPURL -O url.htm
-	MIKTEXFILENAMEEND=`cat url.htm | grep $MIKTEXFILENAME2 | grep $MIKTEXVERSION | cut -f3-4 -d '.' | head -1 | cut -f1 -d '<'`
+	rm -f *.* 2>>$ERRORFILE
+	MIKTEXVERSION=$(mpm --version | head -1 |cut -f4 -d ' ' | cut -c1-3 2>>$ERRORFILE)
+	wget -q $HTTPSEARCHURL -O url.htm 2>>$ERRORFILE
+	MIKTEXFILENAMEEND=$(cat url.htm | grep $MIKTEXFILENAME1 | grep $MIKTEXVERSION | head -1 | cut -f3-4 -d '.' | cut -f1 -d '<' 2>>$ERRORFILE)
     URL="${HTTPURL}/${MIKTEXFILENAME1}-${MIKTEXFILENAME2}1-${MIKTEXVERSION}.${MIKTEXFILENAMEEND}"
-	wget -q $URL
+	wget -q $URL 2>>$ERRORFILE
 	URL="${HTTPURL}/${MIKTEXFILENAME1}-${MIKTEXFILENAME2}2-${MIKTEXVERSION}.${MIKTEXFILENAMEEND}"
-	wget -q $URL
+	wget -q $URL 2>>$ERRORFILE
 	REPO=$TEMPDIR
 	cd $ODIR2
   else
@@ -162,16 +170,16 @@ then
     echo
     if [ ! -d $REPO ]
     then
-      mkdir -p $REPO 2>>$ERROR
+      mkdir -p $REPO 2>>$ERRORFILE
     fi
     cd $REPO
     cd ..
-    if [ -a $ERROR ]
+    if [ -a $ERRORFILE ]
     then
-      rm $ERROR
+      rm $ERRORFILE 2>>$ERRORFILE
     fi
     RSYNCOPT="$RSYNCOPT1 $RSYNCOPT2"
-    rsync $RSYNCOPT $RSYNCURL . 2>>$ERROR
+    rsync $RSYNCOPT $RSYNCURL . 2>>$ERRORFILE
     if [ $? -eq 0 ]
     then
       echo
@@ -181,31 +189,25 @@ elif [ $UPDATEMODE = "ONLINE" ]
 then
   if [ $ARGREPO = "default" ]
   then
-    echo -e "You did not specify a repository.\nPlease add e.g.(random pick): --repository `mpm --pick-repository-url`"
-	exit 1
+	REPO=$(mpm --pick-repository-url | sed -e "s/\r//")
   else
     REPO=$ARGREPO
-	((STEP++))
-	echo "$STEP) Set online repository: $REPO"
-    echo
   fi
+  ((STEP++))
+  echo "$STEP) Set online repository: $REPO"
+  echo
 else
   echo -e "`basename $0`: You did not specify an UPDATE MODE.\nUse the '--help' option for explanation."
   exit 1
 fi
-if [ $UPDATEMODE = "LOCAL" -a $SEARCHONLY = "true" ]
-then
-  mpm --set-repository=$REPO 2>>/dev/null
-else
-  mpm --set-repository=$REPO 2>>$ERROR
-fi
+mpm --set-repository=$REPO 2>>$ERRORFILE
 ((STEP++))
 echo "$STEP) Update DB"
 echo
-mpm --update-db 2>>$ERROR;
+mpm --update-db 2>>$ERRORFILE;
 if [ $UPDATE = "true" ]
 then
-  mpm --find-updates >$UPDLIST 2>>$ERROR
+  mpm --find-updates >$UPDLIST 2>>$ERRORFILE
   if [ $NOLIST = "false" ]
   then
     ((STEP++))
@@ -242,13 +244,14 @@ then
       echo "   There are currently no updates available."
       echo
     else    
-      mpm --update $VERBOSE 2>>$ERROR
+      mpm --update $VERBOSE 2>>$ERRORFILE
+	  echo
     fi
   fi
 fi
 if [ $INSTALL = "true" ]
 then
-  mpm --list | grep -e '- ' | cut -c22- >$INSTLIST 2>>$ERROR
+  mpm --list | grep -e '- ' | cut -c22- >$INSTLIST 2>>$ERRORFILE
   if [ $NOLIST = "false" ]
   then
     ((STEP++))
@@ -282,16 +285,13 @@ then
     echo
     if [ -s $INSTLIST ]
     then
-      mpm --install-some=$INSTLIST $VERBOSE 2>>$ERROR
+      mpm --install-some=$INSTLIST $VERBOSE 2>>$ERRORFILE
+	  echo
     else
       echo "   There are currently no new packages available."
 	  echo
     fi
   fi
-fi
-if [ $UPDATEMODE = "LOCAL" -a $SEARCHONLY = "true" ]
-then
-  rm -fr /tmp/miktex_update
 fi
 if [ $UPDATE = "true" ]
 then
@@ -301,15 +301,27 @@ if [ $INSTALL = "true" ]
 then
   rm $INSTLIST
 fi
-echo
-if [ `ls -al | grep $ERROR | tr -s ' ' | cut -f5 -d ' '` = "0" ]
+if [ $UPDATEMODE = "LOCAL" -a $SEARCHONLY = "true" ]
 then
-  rm $ERROR
+  cd $TEMPDIR
+  rm -f miktex* 2>>$ERRORFILE
+  rm -f url.htm 2>>$ERRORFILE
+  cd $ODIR2
+  rmdir -p --ignore-fail-on-non-empty $TEMPDIR 2>>$ERRORFILE
+fi 
+ODIR3=$(pwd)
+cd $ERRORDIR
+ERRORFILESIZE=$(ls -al | grep $ERROR | tr -s ' ' | cut -f5 -d ' ' 2>>$ERRORFILE)
+cd $ODIR3
+echo
+if [ $ERRORFILESIZE = "0" ]
+then
+  rm $ERRORFILE 2>>$ERRORFILE
   cd $ODIR
 else
   echo "ERROR list:"
   echo
-  cat $ERROR
+  cat $ERRORFILE
   cd $ODIR
   exit 1
 fi
