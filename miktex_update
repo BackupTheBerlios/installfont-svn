@@ -4,13 +4,13 @@
 #
 # synchronize the local MiKTeX repository (optional),
 # update installed packages and install new packages
-# (tested with MiKTeX 2.7) v1.1 (01.07.2008)
+# (tested with MiKTeX 2.7) v1.2 (10.11.2008)
 # (C) Josef Kleber 2008  License: LPPL
 # See http://latex.josef-kleber.de/miktex_update.htm or
 #     http://latex.josef-kleber.de/en_miktex_update.htm
 # for more information
 #
-VERSION="v1.1 (01.07.2008)"
+VERSION="v1.2 (10.11.2008)"
 REPO=E:/MiKTeXRepRsync
 REPOSUBDIR=/packages 
 # don't change REPOSUBDIR!!
@@ -24,7 +24,7 @@ TEMPDIR=""
 TEMPENV=""
 RSYNCURL=rsync://www.ctan.org/SYSTEMS/win32/miktex/tm/packages
 #RSYNCURL=rsync://dante.ctan.org/CTAN/systems/win32/miktex/tm/packages
-RSYNCOPT1="-av"
+RSYNCOPT1="-av --delete"
 RSYNCOPT2="--progress --partial"
 ODIR=$(pwd)
 ODIR2=""
