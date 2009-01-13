@@ -4,14 +4,14 @@
 #
 # synchronize the local MiKTeX repository (optional),
 # update installed packages and install new packages
-# (tested with MiKTeX 2.7) v1.2 (10.11.2008)
-# (C) Josef Kleber 2008  License: LPPL
+# (tested with MiKTeX 2.7) v1.3 (12.01.2009)
+# (C) Josef Kleber 2008-2009  License: LPPL
 # See http://latex.josef-kleber.de/miktex_update.htm or
 #     http://latex.josef-kleber.de/en_miktex_update.htm
 # for more information
 #
-VERSION="v1.2 (10.11.2008)"
-REPO=E:/MiKTeXRepRsync
+VERSION="v1.3 (12.01.2009)"
+REPO=C:/MiKTeXRepRsync
 REPOSUBDIR=/packages 
 # don't change REPOSUBDIR!!
 HTTPURL="http://www.ctan.org/systems/win32/miktex/tm/packages"
@@ -22,8 +22,12 @@ MIKTEXFILENAMEEND=""
 MIKTEXVERSION=""
 TEMPDIR=""
 TEMPENV=""
-RSYNCURL=rsync://www.ctan.org/SYSTEMS/win32/miktex/tm/packages
-#RSYNCURL=rsync://dante.ctan.org/CTAN/systems/win32/miktex/tm/packages
+RSYNCURL1=rsync://tug.ctan.org/CTAN
+RSYNCURL2=/systems/win32/miktex/tm/packages
+# RSYNCURL=rsync://rsync.tex.ac.uk/CTAN
+# RSYNCURL=rsync://dante.ctan.org/CTAN
+# see http://www.ctan.org/tex-archive/CTAN.sites for other "rsync" servers 
+RSYNCURL="${RSYNCURL1}${RSYNCURL2}"
 RSYNCOPT1="-av --delete"
 RSYNCOPT2="--progress --partial"
 ODIR=$(pwd)
@@ -49,30 +53,32 @@ function printHelp()
 {
   echo -e \
           "`basename $0` [options] [--local | --online [--repository <URL/DIR Repository>]]\n"\
-		  " updates your MiKTeX installation and installs new packages\n\n"\
-		  " Options:\n\n"\
-		  " -h, --help  will print this help statement\n\n"\
-		  " -V, --version  will print the version number of `basename $0`\n\n"\
-		  " -b, --broadband  will optimize the text output in LOCAL mode for broadband\n"\
-		  "                  download. Support for partial package download will be\n"\
-		  "                  switched off!\n\n"\
-		  " -v, --verbose  will lead to a more verbose text output in the process of\n"\
-		  "                updating and installing new packages\n\n"\
-		  " -n, --nolist  will not print the list of updatable and/or installable\n"\
-		  "               packages\n\n"\
-		  " -I, --interactive  the script will ask, if you want to update and/or install\n"\
-		  "                    packages (-n.--nolist will be switched off)\n\n"\
-		  " -s, --searchonly  will only list packages, but not update or install them\n\n"\
-		  " -u, --update  will only update already installed packages\n\n"\
-		  " -i, --install  will only install new respectively uninstalled packages\n\n"\
-		  " -l, --local  will set the update mode to LOCAL and syncronize the local\n"\
-		  "              repository (default or specified with option -r) with CTAN\n\n"\
-		  " -o, --online  will set the update mode to ONLINE. You can specify an online\n"\
-		  "               repository with option -r. Without doing so, a repository\n"\
-		  "               from the MiKTeX server network will be picked by random\n\n"\
-		  " -r, --repository  specifies the local or online repository for updating\n"\
-		  "                   and installing new packages\n\n"\
-		  " See http://latex.josef-kleber.de/miktex_update.htm or\n"\
+          " updates your MiKTeX installation and installs new packages\n\n"\
+          " Options:\n\n"\
+          " -h, --help  will print this help statement\n\n"\
+          " -V, --version  will print the version number of `basename $0`\n\n"\
+          " -b, --broadband  will optimize the text output in LOCAL mode for broadband\n"\
+          "                  download. Support for partial package download will be\n"\
+          "                  switched off!\n\n"\
+          " -v, --verbose  will lead to a more verbose text output in the process of\n"\
+          "                updating and installing new packages\n\n"\
+          " -n, --nolist  will not print the list of updatable and/or installable\n"\
+          "               packages\n\n"\
+          " -I, --interactive  the script will ask, if you want to update and/or install\n"\
+          "                    packages (-n.--nolist will be switched off)\n\n"\
+          " -s, --searchonly  will only list packages, but not update or install them\n\n"\
+          " -u, --update  will only update already installed packages\n\n"\
+          " -i, --install  will only install new respectively uninstalled packages\n\n"\
+          " -l, --local  will set the update mode to LOCAL and syncronize the local\n"\
+          "              repository (default or specified with option -r) with CTAN\n\n"\
+          " -o, --online  will set the update mode to ONLINE. You can specify an online\n"\
+          "               repository with option -r. Without doing so, a repository\n"\
+          "               from the MiKTeX server network will be picked by random\n\n"\
+          " -r, --repository  specifies the local or online repository for updating\n"\
+          "                   and installing new packages\n\n"\
+          " -R, --rsync  specifies the rsync server, if you don't want to use the\n"\
+          "              default server (rsync://tug.ctan.org/CTAN)\n\n"\
+          " See http://latex.josef-kleber.de/miktex_update.htm or\n"\
           "     http://latex.josef-kleber.de/en_miktex_update.htm\n"\
           " for more information"
   exit 0;
@@ -89,8 +95,8 @@ then
   exit 1
 fi
 #
-LONGOPTS="help,broadband,verbose,version,nolist,local,online,update,install,interactive,searchonly,repository:"
-SHORTOPTS="hbVvnlouiIsr:"
+LONGOPTS="help,broadband,verbose,version,nolist,local,online,update,install,interactive,searchonly,repository:,rsync:"
+SHORTOPTS="hbVvnlouiIsr:R:"
 ARGS=$(getopt -l "$LONGOPTS" "$SHORTOPTS" "$@" 2>$ERRORFILE)
 if [ $? -ne 0 ]
 then
@@ -104,20 +110,21 @@ eval set -- "$ARGS"
 while [ $# -gt 0 ]; do
   ARG=$1
   case "$ARG" in
-    --help|-h)         shift; printHelp;;
-	--broadband|-b)    shift; RSYNCOPT2="";;
-	--verbose|-v)      shift; VERBOSE="--verbose";;
-	--version|-V)      shift; printVersion;;
-	--nolist|-n)       shift; NOLIST="true";;
-    --local|-l)        shift; UPDATEMODE="LOCAL";;
-	--online|-o)       shift; UPDATEMODE="ONLINE";;
-	--update|-u)       shift; INSTALL="false";;
-	--install|-i)      shift; UPDATE="false";;
-	--interactive|-I)  shift; INTERACTIVE="interactive";;
-	--searchonly|-s)   shift; SEARCHONLY="true";;
-	--repository|-r)   shift; ARGREPO="$1"; shift;;
-	--)                shift; break;;
-	*)                 break;;
+      --help|-h)         shift; printHelp;;
+      --broadband|-b)    shift; RSYNCOPT2="";;
+      --verbose|-v)      shift; VERBOSE="--verbose";;
+      --version|-V)      shift; printVersion;;
+      --nolist|-n)       shift; NOLIST="true";;
+      --local|-l)        shift; UPDATEMODE="LOCAL";;
+      --online|-o)       shift; UPDATEMODE="ONLINE";;
+      --update|-u)       shift; INSTALL="false";;
+      --install|-i)      shift; UPDATE="false";;
+      --interactive|-I)  shift; INTERACTIVE="interactive";;
+      --searchonly|-s)   shift; SEARCHONLY="true";;
+      --repository|-r)   shift; ARGREPO="$1"; shift;;
+      --rsync|-R)        shift; RSYNCURL="$1${RSYNCURL2}"; shift;;
+      --)                shift; break;;
+      *)                 break;;
   esac
 done
 #
@@ -154,16 +161,16 @@ then
     ODIR2=$(pwd)
     mkdir -p $TEMPDIR 2>>$ERRORFILE
     cd $TEMPDIR
-	rm -f *.* 2>>$ERRORFILE
-	MIKTEXVERSION=$(mpm --version | head -1 |cut -f4 -d ' ' | cut -c1-3 2>>$ERRORFILE)
-	wget -q $HTTPSEARCHURL -O url.htm 2>>$ERRORFILE
-	MIKTEXFILENAMEEND=$(cat url.htm | grep $MIKTEXFILENAME1 | grep $MIKTEXVERSION | head -1 | cut -f3-4 -d '.' | cut -f1 -d '<' 2>>$ERRORFILE)
+    rm -f *.* 2>>$ERRORFILE
+    MIKTEXVERSION=$(mpm --version | head -1 |cut -f4 -d ' ' | cut -c1-3 2>>$ERRORFILE)
+    wget -q $HTTPSEARCHURL -O url.htm 2>>$ERRORFILE
+    MIKTEXFILENAMEEND=$(cat url.htm | grep $MIKTEXFILENAME1 | grep $MIKTEXVERSION | head -1 | cut -f3-4 -d '.' | cut -f1 -d '<' 2>>$ERRORFILE)
     URL="${HTTPURL}/${MIKTEXFILENAME1}-${MIKTEXFILENAME2}1-${MIKTEXVERSION}.${MIKTEXFILENAMEEND}"
-	wget -q $URL 2>>$ERRORFILE
-	URL="${HTTPURL}/${MIKTEXFILENAME1}-${MIKTEXFILENAME2}2-${MIKTEXVERSION}.${MIKTEXFILENAMEEND}"
-	wget -q $URL 2>>$ERRORFILE
-	REPO=$TEMPDIR
-	cd $ODIR2
+    wget -q $URL 2>>$ERRORFILE
+    URL="${HTTPURL}/${MIKTEXFILENAME1}-${MIKTEXFILENAME2}2-${MIKTEXVERSION}.${MIKTEXFILENAMEEND}"
+    wget -q $URL 2>>$ERRORFILE
+    REPO=$TEMPDIR
+    cd $ODIR2
   else
     ((STEP++))
     echo "$STEP) Synchronize local repository with CTAN"
@@ -185,11 +192,12 @@ then
       echo
     fi
   fi
+  REPO=$(cygpath -w $REPO)
 elif [ $UPDATEMODE = "ONLINE" ]
 then
   if [ $ARGREPO = "default" ]
   then
-	REPO=$(mpm --pick-repository-url | sed -e "s/\r//")
+    REPO=$(mpm --pick-repository-url | sed -e "s/\r//")
   else
     REPO=$ARGREPO
   fi
@@ -220,18 +228,18 @@ then
     else
       cat $UPDLIST
       echo
-	  if [ $INTERACTIVE = "interactive" ]
-	  then
-	    echo -e "Do you want to update these packages (y/n): \c"
-		read ANSWER
-		if [ $ANSWER = "y" -o $ANSWER = "Y" ]
-		then
-		  UPDATE="true"
-		else
-		  UPDATE="false"
-		fi
-		echo
-	  fi
+      if [ $INTERACTIVE = "interactive" ]
+      then
+        echo -e "Do you want to update these packages (y/n): \c"
+        read ANSWER
+        if [ $ANSWER = "y" -o $ANSWER = "Y" ]
+        then
+          UPDATE="true"
+        else
+          UPDATE="false"
+        fi
+        echo
+      fi
     fi
   fi
   if [ $UPDATE = "true" -a $SEARCHONLY = "false" ]
@@ -245,7 +253,7 @@ then
       echo
     else    
       mpm --update $VERBOSE 2>>$ERRORFILE
-	  echo
+    echo
     fi
   fi
 fi
@@ -256,26 +264,26 @@ then
   then
     ((STEP++))
     echo "$STEP) List of installable packages:"
-	echo
+    echo
     if [ -s $INSTLIST ]
     then
       cat $INSTLIST
-	  echo
-	  if [ $INTERACTIVE = "interactive" ]
-	  then
-	    echo -e "Do you want to install these packages (y/n): \c"
-		read ANSWER
-		if [ $ANSWER = "y" -o $ANSWER = "Y" ]
-		then
-		  INSTALL="true"
-		else
-		  INSTALL="false"
-		fi
-		echo
-	  fi
+    echo
+    if [ $INTERACTIVE = "interactive" ]
+    then
+      echo -e "Do you want to install these packages (y/n): \c"
+      read ANSWER
+      if [ $ANSWER = "y" -o $ANSWER = "Y" ]
+      then
+        INSTALL="true"
+      else
+        INSTALL="false"
+      fi
+      echo
+    fi
     else
       echo "   There are currently no new packages available."
-	  echo
+      echo
     fi
   fi
   if [ $INSTALL = "true" -a $SEARCHONLY = "false" ]
@@ -286,10 +294,10 @@ then
     if [ -s $INSTLIST ]
     then
       mpm --install-some=$INSTLIST $VERBOSE 2>>$ERRORFILE
-	  echo
+    echo
     else
       echo "   There are currently no new packages available."
-	  echo
+      echo
     fi
   fi
 fi
