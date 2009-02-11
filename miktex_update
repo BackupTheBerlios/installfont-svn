@@ -77,7 +77,7 @@ function printHelp()
           " -r, --repository  specifies the local or online repository for updating\n"\
           "                   and installing new packages\n\n"\
           " -R, --rsync  specifies the rsync server, if you don't want to use the\n"\
-          "              default server (rsync://tug.ctan.org/CTAN)\n\n"\
+          "              default server (rsync://tug.ctan.org/CTAN/)\n\n"\
           " See http://latex.josef-kleber.de/miktex_update.htm or\n"\
           "     http://latex.josef-kleber.de/en_miktex_update.htm\n"\
           " for more information"
