@@ -4,13 +4,13 @@
 #
 # synchronize the local MiKTeX repository (optional),
 # update installed packages and install new packages
-# (tested with MiKTeX 2.7) v1.3 (11.02.2009)
+# (tested with MiKTeX 2.8) v1.4 (30.10.2009)
 # (C) Josef Kleber 2008-2009  License: LPPL
-# See http://latex.josef-kleber.de/miktex_update.htm or
-#     http://latex.josef-kleber.de/en_miktex_update.htm
+# See http://miktexupdate.josef-kleber.de/index.htm or
+#     http://miktexupdate.josef-kleber.de/en_index.htm
 # for more information
 #
-VERSION="v1.3 (11.02.2009)"
+VERSION="v1.4 (30.10.2009)"
 REPO=C:/MiKTeXRepRsync
 REPOSUBDIR=/packages 
 # don't change REPOSUBDIR!!
@@ -23,10 +23,10 @@ MIKTEXVERSION=""
 TEMPDIR=""
 TEMPENV=""
 RSYNCURL1=rsync://tug.ctan.org/CTAN/
-RSYNCURL2=systems/win32/miktex/tm/packages
-# RSYNCURL=rsync://rsync.tex.ac.uk/CTAN/
-# RSYNCURL=rsync://dante.ctan.org/CTAN/
-# see http://www.ctan.org/tex-archive/CTAN.sites for other "rsync" servers 
+# RSYNCURL1=rsync://rsync.tex.ac.uk/CTAN/
+# RSYNCURL1=rsync://dante.ctan.org/CTAN/
+# see http://www.ctan.org/tex-archive/CTAN.sites for other "rsync" servers
+RSYNCURL2=systems/win32/miktex/tm/packages 
 RSYNCURL="${RSYNCURL1}${RSYNCURL2}"
 RSYNCOPT1="-av --delete"
 RSYNCOPT2="--progress --partial"
@@ -47,6 +47,7 @@ INSTALL="true"
 NOLIST="false"
 INTERACTIVE="default"
 SEARCHONLY="false"
+ADMIN=""
 typeset -i STEP=0
 #
 function printHelp()
@@ -57,6 +58,7 @@ function printHelp()
           " Options:\n\n"\
           " -h, --help  will print this help statement\n\n"\
           " -V, --version  will print the version number of `basename $0`\n\n"\
+          " -a, --admin  run mpm in administrative mode (MiKTeX v2.8+)\n\n"\
           " -b, --broadband  will optimize the text output in LOCAL mode for broadband\n"\
           "                  download. Support for partial package download will be\n"\
           "                  switched off!\n\n"\
@@ -78,8 +80,8 @@ function printHelp()
           "                   and installing new packages\n\n"\
           " -R, --rsync  specifies the rsync server, if you don't want to use the\n"\
           "              default server (rsync://tug.ctan.org/CTAN/)\n\n"\
-          " See http://latex.josef-kleber.de/miktex_update.htm or\n"\
-          "     http://latex.josef-kleber.de/en_miktex_update.htm\n"\
+          " See http://miktexupdate.josef-kleber.de/index.htm or\n"\
+          "     http://miktexupdate.josef-kleber.de/en_index.htm\n"\
           " for more information"
   exit 0;
 }
@@ -95,8 +97,8 @@ then
   exit 1
 fi
 #
-LONGOPTS="help,broadband,verbose,version,nolist,local,online,update,install,interactive,searchonly,repository:,rsync:"
-SHORTOPTS="hbVvnlouiIsr:R:"
+LONGOPTS="help,admin,broadband,verbose,version,nolist,local,online,update,install,interactive,searchonly,repository:,rsync:"
+SHORTOPTS="habVvnlouiIsr:R:"
 ARGS=$(getopt -l "$LONGOPTS" "$SHORTOPTS" "$@" 2>$ERRORFILE)
 if [ $? -ne 0 ]
 then
@@ -112,6 +114,7 @@ while [ $# -gt 0 ]; do
   case "$ARG" in
       --help|-h)         shift; printHelp;;
       --broadband|-b)    shift; RSYNCOPT2="";;
+      --admin|-a)        shift; ADMIN="--admin";;
       --verbose|-v)      shift; VERBOSE="--verbose";;
       --version|-V)      shift; printVersion;;
       --nolist|-n)       shift; NOLIST="true";;
@@ -162,7 +165,7 @@ then
     mkdir -p $TEMPDIR 2>>$ERRORFILE
     cd $TEMPDIR
     rm -f *.* 2>>$ERRORFILE
-    MIKTEXVERSION=$(mpm --version | head -1 |cut -f4 -d ' ' | cut -c1-3 2>>$ERRORFILE)
+    MIKTEXVERSION=$(mpm --version | head -1 | cut -f4 -d ' ' | cut -c1-3 2>>$ERRORFILE)
     wget -q $HTTPSEARCHURL -O url.htm 2>>$ERRORFILE
     MIKTEXFILENAMEEND=$(cat url.htm | grep $MIKTEXFILENAME1 | grep $MIKTEXVERSION | head -1 | cut -f3-4 -d '.' | cut -f1 -d '<' 2>>$ERRORFILE)
     URL="${HTTPURL}/${MIKTEXFILENAME1}-${MIKTEXFILENAME2}1-${MIKTEXVERSION}.${MIKTEXFILENAMEEND}"
@@ -208,14 +211,14 @@ else
   echo -e "`basename $0`: You did not specify an UPDATE MODE.\nUse the '--help' option for explanation."
   exit 1
 fi
-mpm --set-repository=$REPO 2>>$ERRORFILE
+mpm --set-repository=$REPO $ADMIN 2>>$ERRORFILE
 ((STEP++))
 echo "$STEP) Update DB"
 echo
-mpm --update-db 2>>$ERRORFILE;
+mpm --update-db $ADMIN 2>>$ERRORFILE;
 if [ $UPDATE = "true" ]
 then
-  mpm --find-updates >$UPDLIST 2>>$ERRORFILE
+  mpm --find-updates $ADMIN >$UPDLIST 2>>$ERRORFILE
   if [ $NOLIST = "false" ]
   then
     ((STEP++))
@@ -252,14 +255,14 @@ then
       echo "   There are currently no updates available."
       echo
     else    
-      mpm --update $VERBOSE 2>>$ERRORFILE
+      mpm --update $ADMIN $VERBOSE 2>>$ERRORFILE
     echo
     fi
   fi
 fi
 if [ $INSTALL = "true" ]
 then
-  mpm --list | grep -e '- ' | cut -c22- >$INSTLIST 2>>$ERRORFILE
+  mpm --list $ADMIN | grep -e '- ' | cut -c22- >$INSTLIST 2>>$ERRORFILE
   if [ $NOLIST = "false" ]
   then
     ((STEP++))
@@ -293,7 +296,7 @@ then
     echo
     if [ -s $INSTLIST ]
     then
-      mpm --install-some=$INSTLIST $VERBOSE 2>>$ERRORFILE
+      mpm --install-some=$INSTLIST $ADMIN $VERBOSE 2>>$ERRORFILE
     echo
     else
       echo "   There are currently no new packages available."
